@@ -1,0 +1,33 @@
+{
+	"name": "rank-s",
+	"version": "1.0.0",
+	"description": "",
+	"main": "dist/main.js",
+	"scripts": {
+		"compile": "tsc && node .",
+		"dev": "nodemon"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"canvas": "^2.6.1",
+		"discord.js": "^12.3.1"
+	},
+	"devDependencies": {
+		"@types/node": "^14.6.2",
+		"@types/ws": "^7.2.6",
+		"typescript": "^4.0.2"
+	},
+	"nodemonConfig": {
+		"ignore": [
+			".git",
+			"node_modules"
+		],
+		"watch": [
+			"src"
+		],
+		"exec": "npm run compile",
+		"ext": "ts"
+	}
+}
