@@ -41,26 +41,22 @@ client.on("ready", () => {
 client.on("message", async (msg) => {
   const { author, channel, content } = msg;
   if (author.bot || channel.type !== "text") return;
-  console.log(content);
 
   const [command, ...args] = content.split(" ");
-
-  console.log(args);
 
   switch (command) {
     case "q":
       if (queue.find((p) => p.id === author.id)) {
-        // await channel.send(`${author}, already in a queue!`);
         msg.delete();
         return;
       }
       queue = [...queue, { id: author.id, name: author.username }];
-      await channel.send(`A new player joined the queue!`);
       createLog(
         new MessageEmbed()
           .setTitle(`User joined the 1v1 Queue`)
           .setDescription(Date.now())
           .addField("User", author)
+          .setColor("YELLOW")
           .setThumbnail(author.avatarURL() || author.defaultAvatarURL)
       );
       await msg.delete();
@@ -78,13 +74,55 @@ client.on("message", async (msg) => {
       );
 
       await matchChannel.setParent(MATCH_CHANNELS_CATEGORY_ID);
+      const player1 = channel.guild.member(match.player1.id);
+      const player2 = channel.guild.member(match.player2.id);
+
+      createLog(
+        new MessageEmbed()
+          .setTitle(`1v1 Match Started`)
+          .setDescription(`Match #${matchID}`)
+          .addField("channel", matchChannel)
+          .addField("Player1", player1)
+          .addField("Player2", player2)
+          .addField("started", Date.now())
+          .setColor("GREEN")
+          .setThumbnail(
+            "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
+          )
+      );
+
+      if (!player1 || !player2) return;
+
+      await matchChannel.overwritePermissions([
+        {
+          id: player1.id,
+          allow: ["VIEW_CHANNEL"],
+        },
+        {
+          id: player2.id,
+          allow: ["VIEW_CHANNEL"],
+        },
+      ]);
 
       await matchChannel.send(
-        `match #${matchID}:\n${mentionFromId(
-          match.player1.id
-        )} vs. ${mentionFromId(
+        `${mentionFromId(match.player1.id)} vs.${mentionFromId(
           match.player2.id
-        )}\nuse \`!room [Room]\` to set the room`
+        )}`
+      );
+      await matchChannel.send(
+        new MessageEmbed()
+          .setTitle(`1v1 Match Started`)
+          .setDescription(`Match #${matchID}`)
+          .addField(
+            "room",
+            "No room specified, use `!room [Room]` to set the room"
+          )
+          .addField("Player 1", mentionFromId(match.player1.id))
+          .addField("Player 2", mentionFromId(match.player2.id))
+          .setColor("ORANGE")
+          .setThumbnail(
+            "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
+          )
       );
       break;
     case "!match":
@@ -116,22 +154,28 @@ async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
       return;
     }
 
-    const score = [parseInt(r1), parseInt(r2)];
+    const score: [number, number] = [parseInt(r1), parseInt(r2)];
 
     if (score[0] === score[1]) return;
-    else if (score[0] < score[1]) {
-      await channel.send(
-        `${mentionFromId(match.player1.id)} wins vs.${mentionFromId(
-          match.player2.id
-        )}`
-      );
-    } else {
-      await channel.send(
-        `${mentionFromId(match.player2.id)} wins vs. ${mentionFromId(
-          match.player1.id
-        )}`
-      );
-    }
+
+    createLog(
+      new MessageEmbed()
+        .setTitle(`1v1 Match Resolved`)
+        .setDescription(`Match #${matchID}`)
+        .addField("channel", channel)
+        .addField("room", `#${match.room}`)
+        .addField("Player 1", `${mentionFromId(match.player1.id)}: ${score[0]}`)
+        .addField("Player 2", `${mentionFromId(match.player2.id)}: ${score[1]}`)
+        .addField(
+          "Winner",
+          score[0] < score[1] ? match.player1.name : match.player2.name
+        )
+        .addField("resolved", Date.now())
+        .setColor("BLUE")
+        .setThumbnail(
+          "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
+        )
+    );
     await channel.delete();
   } catch (e) {
     console.error(e);
@@ -174,11 +218,37 @@ async function setMatchRoom(
       return;
     }
 
-    console.log(room);
     match.room = room.replace("#", "");
 
     await channel.setTopic(`Room: #${room}`);
-    await channel.send(`Match #${matchID}: ROOM #${room}`);
+
+    await channel.send(
+      new MessageEmbed()
+        .setTitle(`1v1 Match Started`)
+        .setDescription(`Match #${matchID}`)
+        .addField("room", `#${room}`)
+        .addField("Player 1", mentionFromId(match.player1.id))
+        .addField("Player 2", mentionFromId(match.player2.id))
+        .setColor("ORANGE")
+        .setThumbnail(
+          "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
+        )
+    );
+
+    createLog(
+      new MessageEmbed()
+        .setTitle(`1v1 Match Room Added`)
+        .setDescription(`Match #${matchID}`)
+        .addField("channel", channel)
+        .addField("room", `#${room}`)
+        .addField("Player 1", mentionFromId(match.player1.id))
+        .addField("Player 2", mentionFromId(match.player2.id))
+        .addField("room addded", Date.now())
+        .setColor("PURPLE")
+        .setThumbnail(
+          "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
+        )
+    );
 
     const matchImg = await create1v1MatchCanvas(
       match.player1.name.toUpperCase(),
@@ -186,9 +256,9 @@ async function setMatchRoom(
       match.room
     );
     await channel.send(
-      `match #${matchID}:\n${mentionFromId(
-        match.player1.id
-      )} vs. ${mentionFromId(match.player2.id)}\n`,
+      `${mentionFromId(match.player1.id)} vs. ${mentionFromId(
+        match.player2.id
+      )}`,
       matchImg
     );
   } catch (e) {
