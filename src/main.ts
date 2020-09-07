@@ -9,6 +9,7 @@ import { createCanvas, loadImage } from "canvas";
 
 const client = new Client();
 const TOKEN = process.env.REVOLUBOT_TOKEN;
+
 const MATCH_CHANNEL_PREFIX = "match-";
 const MATCH_CHANNELS_CATEGORY_ID = "752456217598623784";
 const LOGS_CHANNEL_ID = "752462913046052894";
@@ -40,17 +41,27 @@ client.on("ready", () => {
 
 client.on("message", async (msg) => {
   const { author, channel, content } = msg;
+
+  // Check if valid message && channel type
   if (author.bot || channel.type !== "text") return;
 
+  // Separate command from arguments
   const [command, ...args] = content.split(" ");
 
   switch (command) {
+    // New Queue command
     case "q":
+      // Check if user is already in queue
       if (queue.find((p) => p.id === author.id)) {
-        msg.delete();
+        // Delete queue message
+        await msg.delete();
         return;
       }
+
+      // Add user to the queue
       queue = [...queue, { id: author.id, name: author.username }];
+
+      // Log new Queue
       createLog(
         new MessageEmbed()
           .setTitle(`User joined the 1v1 Queue`)
@@ -59,12 +70,19 @@ client.on("message", async (msg) => {
           .setColor("YELLOW")
           .setThumbnail(author.avatarURL() || author.defaultAvatarURL)
       );
+
+      // Delete queue message
       await msg.delete();
+
+      // If queue was successful, receive a match ID, returns if not
       let matchID = checkQueue();
       if (!matchID) return;
 
+      // Fetch the match corresponding to the matchID
       const match = matches[matchID];
+      if (!match) return;
 
+      // Create new TextChannel for the match and set it as a child of the matches category
       const matchChannel = await channel.guild.channels.create(
         matchIDToChannelName(matchID),
         {
@@ -72,18 +90,16 @@ client.on("message", async (msg) => {
           topic: "No room specified, use `!room [Room]` to set the room",
         }
       );
-
       await matchChannel.setParent(MATCH_CHANNELS_CATEGORY_ID);
-      const player1 = channel.guild.member(match.player1.id);
-      const player2 = channel.guild.member(match.player2.id);
 
+      // Log new Match
       createLog(
         new MessageEmbed()
           .setTitle(`1v1 Match Started`)
           .setDescription(`Match #${matchID}`)
           .addField("channel", matchChannel)
-          .addField("Player1", player1)
-          .addField("Player2", player2)
+          .addField("Player1", mentionFromId(match.player1.id))
+          .addField("Player2", mentionFromId(match.player2.id))
           .addField("started", Date.now())
           .setColor("GREEN")
           .setThumbnail(
@@ -91,24 +107,26 @@ client.on("message", async (msg) => {
           )
       );
 
-      if (!player1 || !player2) return;
-
+      // Allow concerned users to see the match channel
       await matchChannel.overwritePermissions([
         {
-          id: player1.id,
+          id: match.player1.id,
           allow: ["VIEW_CHANNEL"],
         },
         {
-          id: player2.id,
+          id: match.player2.id,
           allow: ["VIEW_CHANNEL"],
         },
       ]);
 
+      // Ping concerned users in match channel
       await matchChannel.send(
         `${mentionFromId(match.player1.id)} vs.${mentionFromId(
           match.player2.id
         )}`
       );
+
+      // Send match embed to match channel
       await matchChannel.send(
         new MessageEmbed()
           .setTitle(`1v1 Match Started`)
@@ -125,28 +143,42 @@ client.on("message", async (msg) => {
           )
       );
       break;
+    // Display Match Info command
     case "!match":
       await displayMatch(author.id, channel, args);
       break;
+    // Set Match Room command
     case "!room":
+      // Check if message was sent in a match channel
       if (!channel.name.startsWith(MATCH_CHANNEL_PREFIX)) return;
+      // Set match room
       await setMatchRoom(author.id, channel, args);
-
       break;
     case "!set":
+      // Check if message was sent in a match channel
+      if (!channel.name.startsWith(MATCH_CHANNEL_PREFIX)) return;
+      // Resolve match
       await resolveMatch(channel, args);
       break;
+    // Self bot
     case ".":
-      if (author.id !== "723177171253723246") return;
+      // Check if right userID
+      if (!["723177171253723246", "248470457462947841"].includes(author.id))
+        return;
+      // Delete message
       await msg.delete();
+      // Resend same message via the bot
       await channel.send(content.replace(". ", ""));
   }
 });
 
+// Discord Authentification
 client.login(TOKEN);
 
+// Resolves ongoing match
 async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
   try {
+    // Find matchID from channel name, returns if matchID isn't valid
     const matchID = channelNameToMatchID(channel.name);
     const match = matches[matchID];
     if (!match) {
@@ -154,10 +186,12 @@ async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
       return;
     }
 
+    // Find score from args (string => number)
     const score: [number, number] = [parseInt(r1), parseInt(r2)];
 
     if (score[0] === score[1]) return;
 
+    // Log match results
     createLog(
       new MessageEmbed()
         .setTitle(`1v1 Match Resolved`)
@@ -176,23 +210,28 @@ async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
           "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
         )
     );
+
+    // Delete match channel
     await channel.delete();
   } catch (e) {
     console.error(e);
   }
 }
 
+// Display match info
 async function displayMatch(
   user: string,
   channel: TextChannel,
   [matchID]: string[]
 ) {
+  // Find match using IDm returns if matchID isn't valid
   const match = matches[matchID];
   if (!match) {
     console.error("Invalid Match ID");
     return;
   }
 
+  // Send match info
   await channel.send(
     `Match ID: #${matchID}\n${match.player1.name} vs. ${
       match.player2.name
@@ -200,12 +239,14 @@ async function displayMatch(
   );
 }
 
+// Sets match room
 async function setMatchRoom(
   user: string,
   channel: TextChannel,
   [room]: string[]
 ) {
   try {
+    // Find matchID from channel name, returns if matchID isn't valid
     const matchID = channelNameToMatchID(channel.name);
     const match = matches[matchID];
     if (!match) {
@@ -213,15 +254,19 @@ async function setMatchRoom(
       return;
     }
 
+    // Validate room number
     if (!room) {
       console.error("Invalid Room Number");
       return;
     }
 
+    // Set match room
     match.room = room.replace("#", "");
 
+    // Update match channel topic with room number
     await channel.setTopic(`Room: #${room}`);
 
+    // Send updated Match Info embed (with room)
     await channel.send(
       new MessageEmbed()
         .setTitle(`1v1 Match Started`)
@@ -235,6 +280,7 @@ async function setMatchRoom(
         )
     );
 
+    // Log room addition
     createLog(
       new MessageEmbed()
         .setTitle(`1v1 Match Room Added`)
@@ -250,11 +296,14 @@ async function setMatchRoom(
         )
     );
 
+    // Create match img
     const matchImg = await create1v1MatchCanvas(
       match.player1.name.toUpperCase(),
       match.player2.name.toUpperCase(),
       match.room
     );
+
+    // Send match img and ping concerned users
     await channel.send(
       `${mentionFromId(match.player1.id)} vs. ${mentionFromId(
         match.player2.id
@@ -266,6 +315,7 @@ async function setMatchRoom(
   }
 }
 
+// Check queue and creates a match + returns matchID if queue was successful
 function checkQueue(): string | undefined {
   if (queue.length < 2) return;
 
