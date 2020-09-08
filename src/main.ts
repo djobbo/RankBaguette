@@ -144,10 +144,12 @@ client.on('message', async (msg) => {
 					)
 			);
 			break;
+
 		// Display Match Info command
 		case '!match':
 			await displayMatch(author.id, channel, args);
 			break;
+
 		// Set Match Room command
 		case '!room':
 			// Check if message was sent in a match channel
@@ -155,12 +157,14 @@ client.on('message', async (msg) => {
 			// Set match room
 			await setMatchRoom(author.id, channel, args);
 			break;
+
 		case '!set':
 			// Check if message was sent in a match channel
 			if (!channel.name.startsWith(MATCH_CHANNEL_PREFIX)) return;
 			// Resolve match
 			await resolveMatch(channel, args);
 			break;
+
 		// Self bot
 		case '.':
 			// Check if right userID
