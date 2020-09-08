@@ -4,15 +4,20 @@ import {
   MessageAttachment,
   TextChannel,
   MessageEmbed,
+  Guild,
 } from "discord.js";
 import { createCanvas, loadImage } from "canvas";
 
 const client = new Client();
 const TOKEN = process.env.REVOLUBOT_TOKEN;
 
+const GUILD_ID = "745628224423460864";
 const MATCH_CHANNEL_PREFIX = "match-";
 const MATCH_CHANNELS_CATEGORY_ID = "752456217598623784";
 const LOGS_CHANNEL_ID = "752462913046052894";
+const QUEUE_CHECK_INTERVAL = 5000;
+let guild: Guild | undefined = undefined;
+let logsChannel: TextChannel | undefined = undefined;
 
 interface Player {
   name: string;
@@ -35,8 +40,10 @@ const matchIDToChannelName = (matchID: string) =>
 const channelNameToMatchID = (channelName: string) =>
   channelName.replace(MATCH_CHANNEL_PREFIX, "");
 
-client.on("ready", () => {
+client.on("ready", async () => {
   console.log(`Logged as ${client?.user?.tag}`);
+  guild = await client.guilds.fetch(GUILD_ID);
+  logsChannel = (await client.channels.fetch(LOGS_CHANNEL_ID)) as TextChannel;
 });
 
 client.on("message", async (msg) => {
@@ -73,75 +80,6 @@ client.on("message", async (msg) => {
 
       // Delete queue message
       await msg.delete();
-
-      // If queue was successful, receive a match ID, returns if not
-      let matchID = checkQueue();
-      if (!matchID) return;
-
-      // Fetch the match corresponding to the matchID
-      const match = matches[matchID];
-      if (!match) return;
-
-      // Create new TextChannel for the match and set it as a child of the matches category
-      const matchChannel = await channel.guild.channels.create(
-        matchIDToChannelName(matchID),
-        {
-          type: "text",
-          topic: "No room specified, use `!room [Room]` to set the room",
-        }
-      );
-      await matchChannel.setParent(MATCH_CHANNELS_CATEGORY_ID);
-
-      // Log new Match
-      createLog(
-        new MessageEmbed()
-          .setTitle(`1v1 Match Started`)
-          .setDescription(`Match #${matchID}`)
-          .addField("channel", matchChannel)
-          .addField("Player1", mentionFromId(match.player1.id))
-          .addField("Player2", mentionFromId(match.player2.id))
-          .addField("started", Date.now())
-          .setColor("GREEN")
-          .setThumbnail(
-            "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
-          )
-      );
-
-      // Allow concerned users to see the match channel
-      await matchChannel.overwritePermissions([
-        {
-          id: match.player1.id,
-          allow: ["VIEW_CHANNEL"],
-        },
-        {
-          id: match.player2.id,
-          allow: ["VIEW_CHANNEL"],
-        },
-      ]);
-
-      // Ping concerned users in match channel
-      await matchChannel.send(
-        `${mentionFromId(match.player1.id)} vs.${mentionFromId(
-          match.player2.id
-        )}`
-      );
-
-      // Send match embed to match channel
-      await matchChannel.send(
-        new MessageEmbed()
-          .setTitle(`1v1 Match Started`)
-          .setDescription(`Match #${matchID}`)
-          .addField(
-            "room",
-            "No room specified, use `!room [Room]` to set the room"
-          )
-          .addField("Player 1", mentionFromId(match.player1.id))
-          .addField("Player 2", mentionFromId(match.player2.id))
-          .setColor("ORANGE")
-          .setThumbnail(
-            "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
-          )
-      );
       break;
     // Display Match Info command
     case "!match":
@@ -211,6 +149,7 @@ async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
         )
     );
 
+    delete matches[matchID];
     // Delete match channel
     await channel.delete();
   } catch (e) {
@@ -316,13 +255,78 @@ async function setMatchRoom(
 }
 
 // Check queue and creates a match + returns matchID if queue was successful
-function checkQueue(): string | undefined {
+async function checkQueue() {
+  // Check if guild exists
+  if (!guild) {
+    guild = await client.guilds.fetch(GUILD_ID);
+    return;
+  }
+
   if (queue.length < 2) return;
 
-  const matchId = crypto.randomBytes(8).toString("hex");
-  matches[matchId] = { player1: queue[0], player2: queue[1] };
+  const matchID = crypto.randomBytes(8).toString("hex");
+  matches[matchID] = { player1: queue[0], player2: queue[1] };
   [, , ...queue] = queue;
-  return matchId;
+
+  // Fetch the match corresponding to the matchID
+  const match = matches[matchID];
+  if (!match) return;
+
+  // Create new TextChannel for the match and set it as a child of the matches category
+  const matchChannel = await guild.channels.create(
+    matchIDToChannelName(matchID),
+    {
+      type: "text",
+      topic: "No room specified, use `!room [Room]` to set the room",
+    }
+  );
+  await matchChannel.setParent(MATCH_CHANNELS_CATEGORY_ID);
+
+  // Log new Match
+  createLog(
+    new MessageEmbed()
+      .setTitle(`1v1 Match Started`)
+      .setDescription(`Match #${matchID}`)
+      .addField("channel", matchChannel)
+      .addField("Player1", mentionFromId(match.player1.id))
+      .addField("Player2", mentionFromId(match.player2.id))
+      .addField("started", Date.now())
+      .setColor("GREEN")
+      .setThumbnail(
+        "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
+      )
+  );
+
+  // Allow concerned users to see the match channel
+  await matchChannel.overwritePermissions([
+    {
+      id: match.player1.id,
+      allow: ["VIEW_CHANNEL"],
+    },
+    {
+      id: match.player2.id,
+      allow: ["VIEW_CHANNEL"],
+    },
+  ]);
+
+  // Ping concerned users in match channel
+  await matchChannel.send(
+    `${mentionFromId(match.player1.id)} vs.${mentionFromId(match.player2.id)}`
+  );
+
+  // Send match embed to match channel
+  await matchChannel.send(
+    new MessageEmbed()
+      .setTitle(`1v1 Match Started`)
+      .setDescription(`Match #${matchID}`)
+      .addField("room", "No room specified, use `!room [Room]` to set the room")
+      .addField("Player 1", mentionFromId(match.player1.id))
+      .addField("Player 2", mentionFromId(match.player2.id))
+      .setColor("ORANGE")
+      .setThumbnail(
+        "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
+      )
+  );
 }
 
 export async function create1v1MatchCanvas(
@@ -355,10 +359,15 @@ export async function create1v1MatchCanvas(
 }
 
 async function createLog(embed: MessageEmbed) {
-  const logsChannel = (await client.channels.fetch(
-    LOGS_CHANNEL_ID
-  )) as TextChannel;
-  if (!logsChannel) return;
-
+  if (!logsChannel) {
+    logsChannel = (await client.channels.fetch(LOGS_CHANNEL_ID)) as TextChannel;
+    return;
+  }
   logsChannel.send(embed);
 }
+
+setInterval(async () => {
+  console.log("Queue:", queue);
+  console.log("Matches:", matches);
+  checkQueue();
+}, QUEUE_CHECK_INTERVAL);
