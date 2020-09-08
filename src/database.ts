@@ -3,12 +3,12 @@ import * as Mongoose from "mongoose";
 const DB_PASSWORD = process.env.REVOLUBOT_DB_PWD;
 let database: Mongoose.Connection;
 
-export const connect = () => {
-  const uri = `mongodb+srv://Revolubot:${DB_PASSWORD}@revolubot.mkgky.mongodb.net/<dbname>?retryWrites=true&w=majority`;
+export const connect = async () => {
+  const uri = `mongodb+srv://Revolubot:${DB_PASSWORD}@revolubot.mkgky.mongodb.net/RankedBHFR?retryWrites=true&w=majority`;
 
   if (database) return;
 
-  Mongoose.connect(uri, {
+  await Mongoose.connect(uri, {
     useNewUrlParser: true,
     useFindAndModify: true,
     useUnifiedTopology: true,
@@ -24,6 +24,8 @@ export const connect = () => {
   database.on("error", () => {
     console.log("Error connecting to database");
   });
+
+  return database;
 };
 
 export const disconnect = () => {

@@ -1,4 +1,3 @@
-import * as crypto from "crypto";
 import {
   Client,
   MessageAttachment,
@@ -7,6 +6,10 @@ import {
   Guild,
 } from "discord.js";
 import { createCanvas, loadImage } from "canvas";
+import { connect } from "./database";
+import {calucateRatingDiff} from './elo';
+import { MatchModel } from "./database/match";
+import { PlayerModel } from "./database/player";
 
 const client = new Client();
 const TOKEN = process.env.REVOLUBOT_TOKEN;
@@ -16,22 +19,11 @@ const MATCH_CHANNEL_PREFIX = "match-";
 const MATCH_CHANNELS_CATEGORY_ID = "752456217598623784";
 const LOGS_CHANNEL_ID = "752462913046052894";
 const QUEUE_CHECK_INTERVAL = 5000;
-let guild: Guild | undefined = undefined;
-let logsChannel: TextChannel | undefined = undefined;
 
-interface Player {
-  name: string;
-  id: string;
-}
+let guild: Guild;
+let logsChannel: TextChannel;
 
-interface Match {
-  player1: Player;
-  player2: Player;
-  room?: string;
-}
-
-let queue: Player[] = [];
-let matches: { [k in string]: Match } = {};
+let queue: { id: string; name: string }[] = [];
 
 const mentionFromId = (id: string) => `<@${id}>`;
 
@@ -110,15 +102,17 @@ client.on("message", async (msg) => {
   }
 });
 
-// Discord Authentification
-client.login(TOKEN);
+// DB connection & Discord Authentication
+connect().then(() => {
+  client.login(TOKEN);
+});
 
 // Resolves ongoing match
 async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
   try {
     // Find matchID from channel name, returns if matchID isn't valid
     const matchID = channelNameToMatchID(channel.name);
-    const match = matches[matchID];
+    const match = await MatchModel.findOne({ _id: matchID });
     if (!match) {
       console.error("Invalid Match ID");
       return;
@@ -129,6 +123,8 @@ async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
 
     if (score[0] === score[1]) return;
 
+    const ratingDiff = Math.round(calucateRatingDiff(match.player1.rating, match.player2.rating, score[0] < score[1] ? 0 : 1));
+
     // Log match results
     createLog(
       new MessageEmbed()
@@ -136,11 +132,11 @@ async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
         .setDescription(`Match #${matchID}`)
         .addField("channel", channel)
         .addField("room", `#${match.room}`)
-        .addField("Player 1", `${mentionFromId(match.player1.id)}: ${score[0]}`)
-        .addField("Player 2", `${mentionFromId(match.player2.id)}: ${score[1]}`)
+        .addField("Player 1", `${mentionFromId(match.player1.discordID)}: ${score[0]} (${ratingDiff < 0 ? ratingDiff : `+${ratingDiff}`}) -> ${match.player1.rating + ratingDiff}`)
+        .addField("Player 2", `${mentionFromId(match.player2.discordID)}: ${score[1]} (${ratingDiff <= 0 ? `+${-ratingDiff}` : -ratingDiff}) -> ${match.player2.rating - ratingDiff}`)
         .addField(
           "Winner",
-          score[0] < score[1] ? match.player1.name : match.player2.name
+          score[0] < score[1] ? match.player2.name : match.player1.name
         )
         .addField("resolved", Date.now())
         .setColor("BLUE")
@@ -149,7 +145,23 @@ async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
         )
     );
 
-    delete matches[matchID];
+    match.score1 = score[0];
+    match.score2 = score[1];
+
+    const [player1Doc, player2Doc] = await Promise.all([
+        PlayerModel.findOne({discordID: match.player1.discordID}),
+        PlayerModel.findOne({discordID: match.player2.discordID})
+    ]);
+
+    if (!player1Doc || !player2Doc) {
+        console.error('Player Doc is NULL');
+        return;
+    }
+    
+    await Promise.all([match.save(),
+    player1Doc.updateRating(ratingDiff),
+    player2Doc.updateRating(-ratingDiff)]);
+
     // Delete match channel
     await channel.delete();
   } catch (e) {
@@ -164,7 +176,7 @@ async function displayMatch(
   [matchID]: string[]
 ) {
   // Find match using IDm returns if matchID isn't valid
-  const match = matches[matchID];
+  const match = await MatchModel.findOne({ _id: matchID });
   if (!match) {
     console.error("Invalid Match ID");
     return;
@@ -187,7 +199,7 @@ async function setMatchRoom(
   try {
     // Find matchID from channel name, returns if matchID isn't valid
     const matchID = channelNameToMatchID(channel.name);
-    const match = matches[matchID];
+    const match = await MatchModel.findOne({ _id: matchID });
     if (!match) {
       console.error("Invalid Match ID");
       return;
@@ -201,6 +213,7 @@ async function setMatchRoom(
 
     // Set match room
     match.room = room.replace("#", "");
+    await match.save();
 
     // Update match channel topic with room number
     await channel.setTopic(`Room: #${room}`);
@@ -211,8 +224,8 @@ async function setMatchRoom(
         .setTitle(`1v1 Match Started`)
         .setDescription(`Match #${matchID}`)
         .addField("room", `#${room}`)
-        .addField("Player 1", mentionFromId(match.player1.id))
-        .addField("Player 2", mentionFromId(match.player2.id))
+        .addField("Player 1", mentionFromId(match.player1.discordID))
+        .addField("Player 2", mentionFromId(match.player2.discordID))
         .setColor("ORANGE")
         .setThumbnail(
           "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
@@ -226,8 +239,8 @@ async function setMatchRoom(
         .setDescription(`Match #${matchID}`)
         .addField("channel", channel)
         .addField("room", `#${room}`)
-        .addField("Player 1", mentionFromId(match.player1.id))
-        .addField("Player 2", mentionFromId(match.player2.id))
+        .addField("Player 1", mentionFromId(match.player1.discordID))
+        .addField("Player 2", mentionFromId(match.player2.discordID))
         .addField("room addded", Date.now())
         .setColor("PURPLE")
         .setThumbnail(
@@ -244,8 +257,8 @@ async function setMatchRoom(
 
     // Send match img and ping concerned users
     await channel.send(
-      `${mentionFromId(match.player1.id)} vs. ${mentionFromId(
-        match.player2.id
+      `${mentionFromId(match.player1.discordID)} vs. ${mentionFromId(
+        match.player2.discordID
       )}`,
       matchImg
     );
@@ -264,17 +277,23 @@ async function checkQueue() {
 
   if (queue.length < 2) return;
 
-  const matchID = crypto.randomBytes(8).toString("hex");
-  matches[matchID] = { player1: queue[0], player2: queue[1] };
-  [, , ...queue] = queue;
+  const [player1, player2] = await Promise.all([
+    PlayerModel.findOneOrCreate(queue[0].id, queue[0].name, 1200),
+    PlayerModel.findOneOrCreate(queue[1].id, queue[1].name, 1200),
+  ]);
 
-  // Fetch the match corresponding to the matchID
-  const match = matches[matchID];
+  if (!player1 || !player2) return;
+
+  // Create match document
+  const match = await new MatchModel({ player1, player2 }).save();
   if (!match) return;
+
+  // TODO: better way to clear queue
+  [, , ...queue] = queue;
 
   // Create new TextChannel for the match and set it as a child of the matches category
   const matchChannel = await guild.channels.create(
-    matchIDToChannelName(matchID),
+    matchIDToChannelName(match._id),
     {
       type: "text",
       topic: "No room specified, use `!room [Room]` to set the room",
@@ -286,10 +305,10 @@ async function checkQueue() {
   createLog(
     new MessageEmbed()
       .setTitle(`1v1 Match Started`)
-      .setDescription(`Match #${matchID}`)
+      .setDescription(`Match #${match.id}`)
       .addField("channel", matchChannel)
-      .addField("Player1", mentionFromId(match.player1.id))
-      .addField("Player2", mentionFromId(match.player2.id))
+      .addField("Player1", mentionFromId(match.player1.discordID))
+      .addField("Player2", mentionFromId(match.player2.discordID))
       .addField("started", Date.now())
       .setColor("GREEN")
       .setThumbnail(
@@ -300,28 +319,28 @@ async function checkQueue() {
   // Allow concerned users to see the match channel
   await matchChannel.overwritePermissions([
     {
-      id: match.player1.id,
+      id: match.player1.discordID,
       allow: ["VIEW_CHANNEL"],
     },
     {
-      id: match.player2.id,
+      id: match.player2.discordID,
       allow: ["VIEW_CHANNEL"],
     },
   ]);
 
   // Ping concerned users in match channel
   await matchChannel.send(
-    `${mentionFromId(match.player1.id)} vs.${mentionFromId(match.player2.id)}`
+    `${mentionFromId(match.player1.discordID)} vs.${mentionFromId(match.player2.discordID)}`
   );
 
   // Send match embed to match channel
   await matchChannel.send(
     new MessageEmbed()
       .setTitle(`1v1 Match Started`)
-      .setDescription(`Match #${matchID}`)
+      .setDescription(`Match #${match.id}`)
       .addField("room", "No room specified, use `!room [Room]` to set the room")
-      .addField("Player 1", mentionFromId(match.player1.id))
-      .addField("Player 2", mentionFromId(match.player2.id))
+      .addField("Player 1", mentionFromId(match.player1.discordID))
+      .addField("Player 2", mentionFromId(match.player2.discordID))
       .setColor("ORANGE")
       .setThumbnail(
         "https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg"
@@ -368,6 +387,5 @@ async function createLog(embed: MessageEmbed) {
 
 setInterval(async () => {
   console.log("Queue:", queue);
-  console.log("Matches:", matches);
   checkQueue();
 }, QUEUE_CHECK_INTERVAL);

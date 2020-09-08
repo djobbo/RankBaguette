@@ -62,4 +62,7 @@ PlayerSchema.methods.updateRating = updateRating;
 export default PlayerSchema;
 
 // Model
-export const PlayerModel = model<IPlayerDocument>("player", PlayerSchema);
+export const PlayerModel = model<IPlayerDocument, IPlayerModel>(
+  "player",
+  PlayerSchema
+);
