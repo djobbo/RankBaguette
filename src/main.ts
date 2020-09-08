@@ -229,6 +229,12 @@ async function setMatchRoom(
 			return;
 		}
 
+		// Check if user is player 1
+		if (match.player1.discordID !== user) {
+			channel.send(`${mentionFromId(user)}, you aren't Player 1`);
+			return;
+		}
+
 		// Validate room number
 		if (!room) {
 			console.error('Invalid Room Number');
@@ -301,12 +307,15 @@ async function checkQueue() {
 
 	if (queue.length < 2) return;
 
-	const [player1, player2] = await Promise.all([
+	let [player1, player2] = await Promise.all([
 		PlayerModel.findOneOrCreate(queue[0].id, queue[0].name, 1200),
 		PlayerModel.findOneOrCreate(queue[1].id, queue[1].name, 1200),
 	]);
 
 	if (!player1 || !player2) return;
+
+	if (player1.rating < player2.rating)
+		[player1, player2] = [player2, player1];
 
 	// Create match document
 	const match = await new MatchModel({ player1, player2 }).save();
@@ -354,7 +363,7 @@ async function checkQueue() {
 
 	// Ping concerned users in match channel
 	await matchChannel.send(
-		`${mentionFromId(match.player1.discordID)} vs.${mentionFromId(
+		`${mentionFromId(match.player1.discordID)} vs. ${mentionFromId(
 			match.player2.discordID
 		)}`
 	);
@@ -366,7 +375,7 @@ async function checkQueue() {
 			.setDescription(`Match #${match.id}`)
 			.addField(
 				'room',
-				'No room specified, use `!room [Room]` to set the room'
+				'Player 1 creates the room\n_use `!room [Room]` to set the room_'
 			)
 			.addField('Player 1', mentionFromId(match.player1.discordID))
 			.addField('Player 2', mentionFromId(match.player2.discordID))
