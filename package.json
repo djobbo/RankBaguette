@@ -4,9 +4,9 @@
   "description": "",
   "main": "dist/main.js",
   "scripts": {
-    "compile": "tsc && node .",
+    "build": "tsc && node .",
     "dev": "nodemon",
-    "start": "npm run compile && node ."
+    "start": "node dist/index.js"
   },
   "keywords": [],
   "author": "",
@@ -33,7 +33,7 @@
     "watch": [
       "src"
     ],
-    "exec": "npm run compile",
+    "exec": "npm run build",
     "ext": "ts"
   }
 }
