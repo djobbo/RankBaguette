@@ -1,10 +1,12 @@
+import { MessageEmbed } from 'discord.js';
+import { fetchLogsChannel } from './client';
+
 // Create log msg
-async function createLog(embed: MessageEmbed) {
-	if (!logsChannel) {
-		logsChannel = (await client.channels.fetch(
-			LOGS_CHANNEL_ID
-		)) as TextChannel;
-		return;
-	}
+const createLog = async (embed: MessageEmbed) => {
+	const logsChannel = await fetchLogsChannel();
+	if (!logsChannel) return;
+
 	logsChannel.send(embed);
-}
+};
+
+export { createLog };

@@ -1,9 +1,8 @@
+import { TextChannel } from 'discord.js';
+import { MatchModel } from './database/match';
+
 // Display match info
-async function displayMatch(
-	user: string,
-	channel: TextChannel,
-	[matchID]: string[]
-) {
+const displayMatch = async (channel: TextChannel, [matchID]: string[]) => {
 	// Find match using IDm returns if matchID isn't valid
 	const match = await MatchModel.findOne({ _id: matchID });
 	if (!match) {
@@ -17,4 +16,6 @@ async function displayMatch(
 			match.player2.name
 		}\nRoom: #${match.room || 'N/A'}`
 	);
-}
+};
+
+export { displayMatch };

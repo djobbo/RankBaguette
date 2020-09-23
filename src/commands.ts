@@ -1,4 +1,12 @@
-client.on('message', async (msg) => {
+import { Message, MessageEmbed } from 'discord.js';
+import { MATCH_CHANNEL_PREFIX } from './config';
+import { createLog } from './createLog';
+import { IPlayer } from './types';
+import { displayMatch } from './displayMatch';
+import { resolveMatch } from './resolveMatch';
+import { setMatchRoom } from './setMatchRoom';
+
+const handleCommands = async (msg: Message, queue: IPlayer[]) => {
 	const { author, channel, content } = msg;
 
 	// Check if valid message && channel type
@@ -35,7 +43,7 @@ client.on('message', async (msg) => {
 			break;
 		// Display Match Info command
 		case '!match':
-			await displayMatch(author.id, channel, args);
+			await displayMatch(channel, args);
 			break;
 		// Set Match Room command
 		case '!room':
@@ -64,4 +72,6 @@ client.on('message', async (msg) => {
 			// Resend same message via the bot
 			await channel.send(content.replace('. ', ''));
 	}
-});
+};
+
+export { handleCommands };

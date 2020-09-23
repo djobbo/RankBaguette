@@ -1,10 +1,18 @@
+import { MessageEmbed } from 'discord.js';
+import { fetchGuild } from './client';
+import { MATCH_CHANNELS_CATEGORY_ID } from './config';
+import { MatchModel } from './database/match';
+import { PlayerModel } from './database/player';
+import { matchIDToChannelName, mentionFromId } from './util';
+import { IPlayer } from './types';
+import { createLog } from './createLog';
+
+let queue: IPlayer[] = [];
+
 // Check queue and creates a match + returns matchID if queue was successful
-async function checkQueue() {
-	// Check if guild exists
-	if (!guild) {
-		guild = await client.guilds.fetch(GUILD_ID);
-		return;
-	}
+const checkQueue = async () => {
+	const guild = await fetchGuild();
+	if (!guild) return;
 
 	if (queue.length < 2) return;
 
@@ -85,4 +93,6 @@ async function checkQueue() {
 				'https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg'
 			)
 	);
-}
+};
+
+export { checkQueue };

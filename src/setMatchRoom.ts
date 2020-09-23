@@ -1,9 +1,15 @@
+import { TextChannel, MessageEmbed } from 'discord.js';
+import { create1v1MatchCanvas } from './create1v1MatchCanvas';
+import { createLog } from './createLog';
+import { MatchModel } from './database/match';
+import { channelNameToMatchID, mentionFromId } from './util';
+
 // Sets match room
-async function setMatchRoom(
+const setMatchRoom = async (
 	user: string,
 	channel: TextChannel,
 	[room]: string[]
-) {
+) => {
 	try {
 		// Find matchID from channel name, returns if matchID isn't valid
 		const matchID = channelNameToMatchID(channel.name);
@@ -79,4 +85,6 @@ async function setMatchRoom(
 	} catch (e) {
 		console.error(e);
 	}
-}
+};
+
+export { setMatchRoom };

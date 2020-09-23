@@ -1,4 +1,4 @@
-const MATCH_CHANNEL_PREFIX = 'match-';
+import { MATCH_CHANNEL_PREFIX } from './config';
 
 export const mentionFromId = (id: string) => `<@${id}>`;
 

@@ -13,10 +13,14 @@ connect().then(() => {
 	client.login(TOKEN);
 });
 
-client.on('ready', async () => {
-	console.log(`Logged as ${client?.user?.tag}`);
-	guild = await client.guilds.fetch(GUILD_ID);
-	logsChannel = (await client.channels.fetch(LOGS_CHANNEL_ID)) as TextChannel;
-});
+const fetchGuild = async () => {
+	if (guild) return guild;
+	return await client.guilds.fetch(GUILD_ID);
+};
 
-export { guild, logsChannel, client };
+const fetchLogsChannel = async () => {
+	if (logsChannel) return logsChannel;
+	return (await client.channels.fetch(LOGS_CHANNEL_ID)) as TextChannel;
+};
+
+export { client, fetchGuild, fetchLogsChannel };

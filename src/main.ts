@@ -1,8 +1,13 @@
+import { checkQueue } from './queue';
+import { client } from './client';
 import { QUEUE_CHECK_INTERVAL } from './config';
 
-let queue: { id: string; name: string }[] = [];
+client.on('ready', async () => {
+	console.log(`Logged as ${client?.user?.tag}`);
+});
+
+client.on('message', async (msg) => {});
 
 setInterval(async () => {
-	console.log('Queue:', queue);
 	checkQueue();
 }, QUEUE_CHECK_INTERVAL);

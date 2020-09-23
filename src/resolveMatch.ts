@@ -1,5 +1,12 @@
+import { TextChannel, MessageEmbed } from 'discord.js';
+import { createLog } from './createLog';
+import { MatchModel } from './database/match';
+import { PlayerModel } from './database/player';
+import { calucateRatingDiff } from './elo';
+import { channelNameToMatchID, mentionFromId } from './util';
+
 // Resolves ongoing match
-async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
+const resolveMatch = async (channel: TextChannel, [r1, r2]: string[]) => {
 	try {
 		// Find matchID from channel name, returns if matchID isn't valid
 		const matchID = channelNameToMatchID(channel.name);
@@ -78,4 +85,6 @@ async function resolveMatch(channel: TextChannel, [r1, r2]: string[]) {
 	} catch (e) {
 		console.error(e);
 	}
-}
+};
+
+export { resolveMatch };

@@ -1,3 +1,6 @@
+import { createCanvas, loadImage } from 'canvas';
+import { MessageAttachment } from 'discord.js';
+
 export async function create1v1MatchCanvas(
 	player1: string,
 	player2: string,
