@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 import { checkQueue } from './queue';
 import { client } from './client';
 import { QUEUE_CHECK_INTERVAL } from './config';
