@@ -1,13 +1,14 @@
 import { Message, MessageEmbed } from 'discord.js';
 import { MATCH_CHANNEL_PREFIX } from './config';
 import { createLog } from './createLog';
-import { IPlayer } from './types';
 import { displayMatch } from './displayMatch';
 import { resolveMatch } from './resolveMatch';
 import { setMatchRoom } from './setMatchRoom';
+import { addPlayerToQueue, fetchQueue } from './queue';
 
-const handleCommands = async (msg: Message, queue: IPlayer[]) => {
+const handleCommands = async (msg: Message) => {
 	const { author, channel, content } = msg;
+	const queue = fetchQueue();
 
 	// Check if valid message && channel type
 	if (author.bot || channel.type !== 'text') return;
@@ -26,7 +27,7 @@ const handleCommands = async (msg: Message, queue: IPlayer[]) => {
 			}
 
 			// Add user to the queue
-			queue = [...queue, { id: author.id, name: author.username }];
+			addPlayerToQueue({ id: author.id, name: author.username });
 
 			// Log new Queue
 			createLog(

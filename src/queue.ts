@@ -95,4 +95,9 @@ const checkQueue = async () => {
 	);
 };
 
-export { checkQueue };
+const fetchQueue = () => queue;
+const addPlayerToQueue = (player: IPlayer) => {
+	queue = [...queue, player];
+};
+
+export { checkQueue, fetchQueue, addPlayerToQueue };
