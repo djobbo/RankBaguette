@@ -20,8 +20,8 @@ const setMatchRoom = async (
 		}
 
 		// Check if user is player 1
-		if (match.player1.discordID !== user) {
-			channel.send(`${mentionFromId(user)}, you aren't Player 1`);
+		if (!match.teams[0].players.find((p) => p.discordID === user)) {
+			channel.send(`${mentionFromId(user)}, you aren't in Team 1`);
 			return;
 		}
 
@@ -44,8 +44,18 @@ const setMatchRoom = async (
 				.setTitle(`1v1 Match Started`)
 				.setDescription(`Match #${matchID}`)
 				.addField('room', `#${room}`)
-				.addField('Player 1', mentionFromId(match.player1.discordID))
-				.addField('Player 2', mentionFromId(match.player2.discordID))
+				.addField(
+					'Team1',
+					match.teams[0].players
+						.map((p) => mentionFromId(p.discordID))
+						.join(', ')
+				)
+				.addField(
+					'Team2',
+					match.teams[1].players
+						.map((p) => mentionFromId(p.discordID))
+						.join(', ')
+				)
 				.setColor('ORANGE')
 				.setThumbnail(
 					'https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg'
@@ -59,8 +69,18 @@ const setMatchRoom = async (
 				.setDescription(`Match #${matchID}`)
 				.addField('channel', channel)
 				.addField('room', `#${room}`)
-				.addField('Player 1', mentionFromId(match.player1.discordID))
-				.addField('Player 2', mentionFromId(match.player2.discordID))
+				.addField(
+					'Team1',
+					match.teams[0].players
+						.map((p) => mentionFromId(p.discordID))
+						.join(', ')
+				)
+				.addField(
+					'Team2',
+					match.teams[1].players
+						.map((p) => mentionFromId(p.discordID))
+						.join(', ')
+				)
 				.addField('room addded', Date.now())
 				.setColor('PURPLE')
 				.setThumbnail(
@@ -69,17 +89,21 @@ const setMatchRoom = async (
 		);
 
 		// Create match img
+		// TODO: Make this work with teams
 		const matchImg = await create1v1MatchCanvas(
-			match.player1.name.toUpperCase(),
-			match.player2.name.toUpperCase(),
+			match.teams[0].players[0].name.toUpperCase(),
+			match.teams[1].players[0].name.toUpperCase(),
 			match.room
 		);
 
 		// Send match img and ping concerned users
+		// TODO: any number of teams
 		await channel.send(
-			`${mentionFromId(match.player1.discordID)} vs. ${mentionFromId(
-				match.player2.discordID
-			)}`,
+			`${match.teams[0].players
+				.map((p) => mentionFromId(p.discordID))
+				.join(', ')} vs. ${match.teams[1].players
+				.map((p) => mentionFromId(p.discordID))
+				.join(', ')}`,
 			matchImg
 		);
 	} catch (e) {

@@ -18,14 +18,14 @@ const handleCommands = async (msg: Message) => {
 		// New Queue command
 		case 'q':
 			// Add user to the queue
-			addUserToQueue(author);
+			addUserToQueue(author, '1v1');
 			// Delete queue message
 			await msg.delete();
 			break;
 
 		// Leave Queue command
 		case 'dq':
-			removeUserFromQueue(author);
+			removeUserFromQueue(author, '1v1');
 			await msg.delete();
 			break;
 

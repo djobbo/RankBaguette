@@ -14,5 +14,6 @@ client.on('message', async (msg) => {
 });
 
 setInterval(async () => {
-	checkQueue();
+	checkQueue({ bracketName: '1v1', teamSize: 1 });
+	checkQueue({ bracketName: '2v2', teamSize: 2 });
 }, QUEUE_CHECK_INTERVAL);

@@ -1,37 +1,67 @@
-import { MessageEmbed, User } from 'discord.js';
+import { MessageEmbed, OverwriteResolvable, User } from 'discord.js';
 import { fetchGuild } from '../bot/client';
 import { MATCH_CHANNELS_CATEGORY_ID } from '../bot/config';
 import { MatchModel } from '../database/match';
-import { PlayerModel } from '../database/player';
+import { IPlayerDocument, PlayerModel } from '../database/player';
 import { matchIDToChannelName, mentionFromId } from '../util/discord';
 import { IPlayer } from '../types';
 import { createLog } from './createLog';
+import { shuffle } from '../util/shuffle';
 
-let queue: IPlayer[] = [];
+type BracketName = '1v1' | '2v2';
+interface IBracket {
+	bracketName: BracketName;
+	teamSize: number;
+}
+
+let queue: { [k in BracketName]: IPlayer[] } = { '1v1': [], '2v2': [] };
 
 // Check queue and creates a match + returns matchID if queue was successful
-const checkQueue = async () => {
+const checkQueue = async ({ bracketName, teamSize }: IBracket) => {
 	const guild = await fetchGuild();
 	if (!guild) return;
 
-	if (queue.length < 2) return;
+	if (queue[bracketName].length < teamSize * 2) return;
 
-	let [player1, player2] = await Promise.all([
-		PlayerModel.findOneOrCreate(queue[0].id, queue[0].name, 1200),
-		PlayerModel.findOneOrCreate(queue[1].id, queue[1].name, 1200),
-	]);
+	// Create/Fetch player docs
+	const players = await Promise.all(
+		queue[bracketName].reduce<Promise<IPlayerDocument>[]>(
+			(acc, p, i) =>
+				i < teamSize * 2
+					? [...acc, PlayerModel.findOneOrCreate(p.id, p.name, 1200)]
+					: acc,
+			[]
+		)
+	);
 
-	if (!player1 || !player2) return;
+	// Check if all players are defined
+	for (let i = 0; i < players.length; i++) if (!players[i]) return;
 
-	if (player1.rating < player2.rating)
-		[player1, player2] = [player2, player1];
+	// Shuffle Players
+	const shuffledPlayers = shuffle(players);
+
+	// Separate Players in two teams
+	// TODO: any number of teams
+	let teams = [
+		shuffledPlayers.slice(0, teamSize),
+		shuffledPlayers.slice(teamSize),
+	].map((p) => ({
+		players: p,
+		rating:
+			p.reduce<number>((ratingAcc, b) => ratingAcc + b.rating, 0) /
+			teamSize,
+	}));
+
+	// TODO: any number of teams
+	if (teams[0].rating < teams[1].rating)
+		[teams[0], teams[1]] = [teams[1], teams[0]];
 
 	// Create match document
-	const match = await new MatchModel({ player1, player2 }).save();
+	const match = await new MatchModel({ teams }).save();
 	if (!match) return;
 
 	// TODO: better way to clear queue
-	[, , ...queue] = queue;
+	[, , ...queue[bracketName]] = queue[bracketName];
 
 	// Create new TextChannel for the match and set it as a child of the matches category
 	const matchChannel = await guild.channels.create(
@@ -46,11 +76,21 @@ const checkQueue = async () => {
 	// Log new Match
 	createLog(
 		new MessageEmbed()
-			.setTitle(`1v1 Match Started`)
+			.setTitle(`${teamSize}v${teamSize} Match Started`)
 			.setDescription(`Match #${match.id}`)
 			.addField('channel', matchChannel)
-			.addField('Player1', mentionFromId(match.player1.discordID))
-			.addField('Player2', mentionFromId(match.player2.discordID))
+			.addField(
+				'Team1',
+				match.teams[0].players
+					.map((p) => mentionFromId(p.discordID))
+					.join(', ')
+			)
+			.addField(
+				'Team2',
+				match.teams[1].players
+					.map((p) => mentionFromId(p.discordID))
+					.join(', ')
+			)
 			.addField('started', Date.now())
 			.setColor('GREEN')
 			.setThumbnail(
@@ -58,36 +98,44 @@ const checkQueue = async () => {
 			)
 	);
 
-	// Allow concerned users to see the match channel
-	await matchChannel.overwritePermissions([
-		{
-			id: match.player1.discordID,
+	// Allow users to see the match channel
+	await matchChannel.overwritePermissions(
+		players.map<OverwriteResolvable>((p) => ({
+			id: p.discordID,
 			allow: ['VIEW_CHANNEL'],
-		},
-		{
-			id: match.player2.discordID,
-			allow: ['VIEW_CHANNEL'],
-		},
-	]);
+		}))
+	);
 
 	// Ping concerned users in match channel
 	await matchChannel.send(
-		`${mentionFromId(match.player1.discordID)} vs. ${mentionFromId(
-			match.player2.discordID
-		)}`
+		`${match.teams[0].players
+			.map((p) => mentionFromId(p.discordID))
+			.join(', ')} vs. ${match.teams[1].players
+			.map((p) => mentionFromId(p.discordID))
+			.join(', ')}`
 	);
 
 	// Send match embed to match channel
 	await matchChannel.send(
 		new MessageEmbed()
-			.setTitle(`1v1 Match Started`)
+			.setTitle(`${teamSize}v${teamSize} Match Started`)
 			.setDescription(`Match #${match.id}`)
 			.addField(
 				'room',
-				'Player 1 creates the room\n_use `!room [Room]` to set the room_'
+				'Team 1 creates the room\n_use `!room [Room]` to set the room_'
 			)
-			.addField('Player 1', mentionFromId(match.player1.discordID))
-			.addField('Player 2', mentionFromId(match.player2.discordID))
+			.addField(
+				'Team1',
+				match.teams[0].players
+					.map((p) => mentionFromId(p.discordID))
+					.join(', ')
+			)
+			.addField(
+				'Team2',
+				match.teams[1].players
+					.map((p) => mentionFromId(p.discordID))
+					.join(', ')
+			)
 			.setColor('ORANGE')
 			.setThumbnail(
 				'https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg'
@@ -95,12 +143,12 @@ const checkQueue = async () => {
 	);
 };
 
-const addUserToQueue = (user: User) => {
+const addUserToQueue = (user: User, bracketName: BracketName) => {
 	// Check if user is already in queue
-	if (queue.find((p) => p.id === user.id)) return;
+	if (queue[bracketName].find((p) => p.id === user.id)) return;
 
 	const player = { id: user.id, name: user.username };
-	queue = [...queue, player];
+	queue[bracketName] = [...queue[bracketName], player];
 
 	// Log new Queue
 	createLog(
@@ -113,8 +161,8 @@ const addUserToQueue = (user: User) => {
 	);
 };
 
-const removeUserFromQueue = (user: User) => {
-	queue = queue.filter((p) => p.id !== user.id);
+const removeUserFromQueue = (user: User, bracketName: BracketName) => {
+	queue[bracketName] = queue[bracketName].filter((p) => p.id !== user.id);
 };
 
 export { checkQueue, addUserToQueue, removeUserFromQueue };

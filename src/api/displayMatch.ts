@@ -1,5 +1,6 @@
 import { TextChannel } from 'discord.js';
 import { MatchModel } from '../database/match';
+import { mentionFromId } from '../util/discord';
 
 // Display match info
 const displayMatch = async (channel: TextChannel, [matchID]: string[]) => {
@@ -11,10 +12,13 @@ const displayMatch = async (channel: TextChannel, [matchID]: string[]) => {
 	}
 
 	// Send match info
+	// TODO: any number of teams
 	await channel.send(
-		`Match ID: #${matchID}\n${match.player1.name} vs. ${
-			match.player2.name
-		}\nRoom: #${match.room || 'N/A'}`
+		`Match ID: #${matchID}\n${match.teams[0].players
+			.map((p) => mentionFromId(p.discordID))
+			.join(', ')} vs. ${match.teams[0].players
+			.map((p) => mentionFromId(p.discordID))
+			.join(', ')}\nRoom: #${match.room || 'N/A'}`
 	);
 };
 
