@@ -1,5 +1,5 @@
 import { MessageEmbed } from 'discord.js';
-import { fetchLogsChannel } from './client';
+import { fetchLogsChannel } from '../bot/client';
 
 // Create log msg
 const createLog = async (embed: MessageEmbed) => {

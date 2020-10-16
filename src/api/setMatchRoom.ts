@@ -1,8 +1,8 @@
 import { TextChannel, MessageEmbed } from 'discord.js';
 import { create1v1MatchCanvas } from './create1v1MatchCanvas';
 import { createLog } from './createLog';
-import { MatchModel } from './database/match';
-import { channelNameToMatchID, mentionFromId } from './util';
+import { MatchModel } from '../database/match';
+import { channelNameToMatchID, mentionFromId } from '../util/discord';
 
 // Sets match room
 const setMatchRoom = async (

@@ -1,5 +1,5 @@
 import { Message, MessageEmbed } from 'discord.js';
-import { MATCH_CHANNEL_PREFIX } from './config';
+import { MATCH_CHANNEL_PREFIX } from '../bot/config';
 import { createLog } from './createLog';
 import { displayMatch } from './displayMatch';
 import { resolveMatch } from './resolveMatch';

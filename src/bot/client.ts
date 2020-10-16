@@ -1,6 +1,6 @@
 import { Client, Guild, TextChannel } from 'discord.js';
-import { connect } from './database';
-import { GUILD_ID, LOGS_CHANNEL_ID } from './config';
+import { connect } from '../database';
+import { GUILD_ID, LOGS_CHANNEL_ID } from './bot/config';
 
 let guild: Guild;
 let logsChannel: TextChannel;

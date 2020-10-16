@@ -1,9 +1,9 @@
 require('dotenv').config();
 
-import { checkQueue } from './queue';
-import { client } from './client';
-import { QUEUE_CHECK_INTERVAL } from './config';
-import { handleCommands } from './handleCommands';
+import { checkQueue } from './api/queue';
+import { client } from './bot/client';
+import { QUEUE_CHECK_INTERVAL } from './bot/config';
+import { handleCommands } from './api/handleCommands';
 
 client.on('ready', async () => {
 	console.log(`Logged as ${client?.user?.tag}`);

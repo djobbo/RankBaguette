@@ -1,10 +1,10 @@
 import { MessageEmbed } from 'discord.js';
-import { fetchGuild } from './client';
-import { MATCH_CHANNELS_CATEGORY_ID } from './config';
-import { MatchModel } from './database/match';
-import { PlayerModel } from './database/player';
-import { matchIDToChannelName, mentionFromId } from './util';
-import { IPlayer } from './types';
+import { fetchGuild } from '../bot/client';
+import { MATCH_CHANNELS_CATEGORY_ID } from '../bot/config';
+import { MatchModel } from '../database/match';
+import { PlayerModel } from '../database/player';
+import { matchIDToChannelName, mentionFromId } from '../util/discord';
+import { IPlayer } from '../types';
 import { createLog } from './createLog';
 
 let queue: IPlayer[] = [];

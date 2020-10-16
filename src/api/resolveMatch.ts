@@ -1,9 +1,9 @@
 import { TextChannel, MessageEmbed } from 'discord.js';
 import { createLog } from './createLog';
-import { MatchModel } from './database/match';
-import { PlayerModel } from './database/player';
-import { calucateRatingDiff } from './elo';
-import { channelNameToMatchID, mentionFromId } from './util';
+import { MatchModel } from '../database/match';
+import { PlayerModel } from '../database/player';
+import { calucateRatingDiff } from '../util/elo';
+import { channelNameToMatchID, mentionFromId } from '../util/discord';
 
 // Resolves ongoing match
 const resolveMatch = async (channel: TextChannel, [r1, r2]: string[]) => {

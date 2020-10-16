@@ -1,4 +1,4 @@
-import { MATCH_CHANNEL_PREFIX } from './config';
+import { MATCH_CHANNEL_PREFIX } from '../bot/config';
 
 export const mentionFromId = (id: string) => `<@${id}>`;
 

@@ -1,5 +1,5 @@
 import { TextChannel } from 'discord.js';
-import { MatchModel } from './database/match';
+import { MatchModel } from '../database/match';
 
 // Display match info
 const displayMatch = async (channel: TextChannel, [matchID]: string[]) => {
