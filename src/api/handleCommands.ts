@@ -23,6 +23,10 @@ const handleCommands = async (msg: Message) => {
 			await msg.delete();
 			break;
 
+		// case 'qa':
+		// 	addUserToQueue(Object.assign(author, { id: args[0] }), '2v2');
+		// 	break;
+
 		// Leave Queue command
 		case 'dq':
 			removeUserFromQueue(author, '1v1');

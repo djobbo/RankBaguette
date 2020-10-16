@@ -76,7 +76,7 @@ const checkQueue = async ({ bracketName, teamSize }: IBracket) => {
 	// Log new Match
 	createLog(
 		new MessageEmbed()
-			.setTitle(`${teamSize}v${teamSize} Match Started`)
+			.setTitle(`${bracketName} Match Started`)
 			.setDescription(`Match #${match.id}`)
 			.addField('channel', matchChannel)
 			.addField(
@@ -118,7 +118,7 @@ const checkQueue = async ({ bracketName, teamSize }: IBracket) => {
 	// Send match embed to match channel
 	await matchChannel.send(
 		new MessageEmbed()
-			.setTitle(`${teamSize}v${teamSize} Match Started`)
+			.setTitle(`${bracketName} Match Started`)
 			.setDescription(`Match #${match.id}`)
 			.addField(
 				'room',
@@ -153,7 +153,7 @@ const addUserToQueue = (user: User, bracketName: BracketName) => {
 	// Log new Queue
 	createLog(
 		new MessageEmbed()
-			.setTitle(`User joined the 1v1 Queue`)
+			.setTitle(`User joined the ${bracketName} Queue`)
 			.setDescription(Date.now())
 			.addField('User', user)
 			.setColor('YELLOW')
