@@ -1,8 +1,9 @@
-import { TextChannel } from 'discord.js';
+import { MessageEmbed, TextChannel } from 'discord.js';
 import { MatchModel } from '../database/match';
 import { PlayerModel } from '../database/player';
 import { calucateRatingDiff } from '../util/elo';
-import { channelNameToMatchID } from '../util/discord';
+import { channelNameToMatchID, mentionFromId } from '../util/discord';
+import { createLog } from './createLog';
 
 // Resolves ongoing match
 const resolveMatch = async (channel: TextChannel, scores: string[]) => {
@@ -24,8 +25,8 @@ const resolveMatch = async (channel: TextChannel, scores: string[]) => {
 
 		const newTeams = teams.map((team) =>
 			team.players.map((player) => ({
-				...player,
-				rating: Math.round(
+				discordID: player.discordID,
+				ratingDiff: Math.round(
 					teams.reduce(
 						(acc, t) =>
 							t === team
@@ -50,48 +51,62 @@ const resolveMatch = async (channel: TextChannel, scores: string[]) => {
 		);
 
 		// Log match results
-		// createLog(
-		// 	new MessageEmbed()
-		// 		.setTitle(`1v1 Match Resolved`)
-		// 		.setDescription(`Match #${matchID}`)
-		// 		.addField('channel', channel)
-		// 		.addField('room', `#${match.room}`)
-		// 		.addField(
-		// 			'Player 1',
-		// 			`${mentionFromId(match.player1.discordID)}: ${score[0]} (${
-		// 				ratingDiff < 0 ? ratingDiff : `+${ratingDiff}`
-		// 			}) -> ${match.player1.rating + ratingDiff}`
-		// 		)
-		// 		.addField(
-		// 			'Player 2',
-		// 			`${mentionFromId(match.player2.discordID)}: ${score[1]} (${
-		// 				ratingDiff <= 0 ? `+${-ratingDiff}` : -ratingDiff
-		// 			}) -> ${match.player2.rating - ratingDiff}`
-		// 		)
-		// 		.addField(
-		// 			'Winner',
-		// 			score[0] < score[1]
-		// 				? match.player2.name
-		// 				: match.player1.name
-		// 		)
-		// 		.addField('resolved', Date.now())
-		// 		.setColor('BLUE')
-		// 		.setThumbnail(
-		// 			'https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg'
-		// 		)
-		// );
+		// TODO: make this work w/ teams
+		createLog(
+			new MessageEmbed()
+				.setTitle(`1v1 Match Resolved`)
+				.setDescription(`Match #${matchID}`)
+				.addField('channel', channel)
+				.addField('room', `#${match.room}`)
+				.addField(
+					'Player 1',
+					`${mentionFromId(match.teams[0].players[0].discordID)}: ${
+						scores[0]
+					} (${
+						newTeams[0][0].ratingDiff < 0
+							? newTeams[0][0].ratingDiff
+							: `+${newTeams[0][0].ratingDiff}`
+					}) -> ${
+						match.teams[0].players[0].rating +
+						newTeams[0][0].ratingDiff
+					}`
+				)
+				.addField(
+					'Player 2',
+					`${mentionFromId(match.teams[1].players[0].discordID)}: ${
+						scores[1]
+					} (${
+						newTeams[1][0].ratingDiff < 0
+							? newTeams[1][0].ratingDiff
+							: `+${newTeams[1][0].ratingDiff}`
+					}) -> ${
+						match.teams[1].players[0].rating +
+						newTeams[1][0].ratingDiff
+					}`
+				)
+				.addField(
+					'Winner',
+					scores[0] < scores[1]
+						? match.teams[1].players[0].name
+						: match.teams[0].players[0].name
+				)
+				.addField('resolved', Date.now())
+				.setColor('BLUE')
+				.setThumbnail(
+					'https://cdn.discordapp.com/attachments/682525604670996612/748966236804612130/Revolucien_Mascot_III_---x512.jpg'
+				)
+		);
 
 		match.scores = scores.map((s) => parseInt(s));
 
 		// Update players
 		newTeams.forEach((team) =>
-			team.forEach(async (p) =>
-				(
-					await PlayerModel.findOne({
-						discordID: p.discordID,
-					})
-				)?.setRating(p.rating)
-			)
+			team.forEach(async (p) => {
+				const user = await PlayerModel.findOne({
+					discordID: p.discordID,
+				});
+				user?.updateRating(p.ratingDiff);
+			})
 		);
 
 		// Delete match channel
