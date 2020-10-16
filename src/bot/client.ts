@@ -10,6 +10,7 @@ const TOKEN = process.env.REVOLUBOT_TOKEN;
 
 // DB connection & Discord Authentication
 connect().then(() => {
+	console.log('💻 DB Connected!');
 	client.login(TOKEN);
 });
 

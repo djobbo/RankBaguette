@@ -6,7 +6,7 @@ import { QUEUE_CHECK_INTERVAL } from './bot/config';
 import { handleCommands } from './api/handleCommands';
 
 client.on('ready', async () => {
-	console.log(`Logged as ${client?.user?.tag}`);
+	console.log(`🤓 Logged as ${client?.user?.tag}`);
 });
 
 client.on('message', async (msg) => {
