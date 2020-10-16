@@ -23,9 +23,11 @@ const handleCommands = async (msg: Message) => {
 			await msg.delete();
 			break;
 
-		// case 'qa':
-		// 	addUserToQueue(Object.assign(author, { id: args[0] }), '2v2');
-		// 	break;
+		case 'q2':
+			addUserToQueue(author, '2v2');
+			// Delete queue message
+			await msg.delete();
+			break;
 
 		// Leave Queue command
 		case 'dq':
