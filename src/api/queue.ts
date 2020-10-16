@@ -1,4 +1,4 @@
-import { MessageEmbed } from 'discord.js';
+import { MessageEmbed, User } from 'discord.js';
 import { fetchGuild } from '../bot/client';
 import { MATCH_CHANNELS_CATEGORY_ID } from '../bot/config';
 import { MatchModel } from '../database/match';
@@ -39,9 +39,9 @@ const checkQueue = async () => {
 		{
 			type: 'text',
 			topic: 'No room specified, use `!room [Room]` to set the room',
+			parent: MATCH_CHANNELS_CATEGORY_ID,
 		}
 	);
-	await matchChannel.setParent(MATCH_CHANNELS_CATEGORY_ID);
 
 	// Log new Match
 	createLog(
@@ -95,9 +95,26 @@ const checkQueue = async () => {
 	);
 };
 
-const fetchQueue = () => queue;
-const addPlayerToQueue = (player: IPlayer) => {
+const addUserToQueue = (user: User) => {
+	// Check if user is already in queue
+	if (queue.find((p) => p.id === user.id)) return;
+
+	const player = { id: user.id, name: user.username };
 	queue = [...queue, player];
+
+	// Log new Queue
+	createLog(
+		new MessageEmbed()
+			.setTitle(`User joined the 1v1 Queue`)
+			.setDescription(Date.now())
+			.addField('User', user)
+			.setColor('YELLOW')
+			.setThumbnail(user.avatarURL() || user.defaultAvatarURL)
+	);
 };
 
-export { checkQueue, fetchQueue, addPlayerToQueue };
+const removeUserFromQueue = (user: User) => {
+	queue = queue.filter((p) => p.id !== user.id);
+};
+
+export { checkQueue, addUserToQueue, removeUserFromQueue };

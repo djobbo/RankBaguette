@@ -1,14 +1,12 @@
-import { Message, MessageEmbed } from 'discord.js';
+import { Message } from 'discord.js';
 import { MATCH_CHANNEL_PREFIX } from '../bot/config';
-import { createLog } from './createLog';
 import { displayMatch } from './displayMatch';
 import { resolveMatch } from './resolveMatch';
 import { setMatchRoom } from './setMatchRoom';
-import { addPlayerToQueue, fetchQueue } from './queue';
+import { addUserToQueue, removeUserFromQueue } from './queue';
 
 const handleCommands = async (msg: Message) => {
 	const { author, channel, content } = msg;
-	const queue = fetchQueue();
 
 	// Check if valid message && channel type
 	if (author.bot || channel.type !== 'text') return;
@@ -19,33 +17,23 @@ const handleCommands = async (msg: Message) => {
 	switch (command) {
 		// New Queue command
 		case 'q':
-			// Check if user is already in queue
-			if (queue.find((p) => p.id === author.id)) {
-				// Delete queue message
-				await msg.delete();
-				return;
-			}
-
 			// Add user to the queue
-			addPlayerToQueue({ id: author.id, name: author.username });
-
-			// Log new Queue
-			createLog(
-				new MessageEmbed()
-					.setTitle(`User joined the 1v1 Queue`)
-					.setDescription(Date.now())
-					.addField('User', author)
-					.setColor('YELLOW')
-					.setThumbnail(author.avatarURL() || author.defaultAvatarURL)
-			);
-
+			addUserToQueue(author);
 			// Delete queue message
 			await msg.delete();
 			break;
+
+		// Leave Queue command
+		case 'dq':
+			removeUserFromQueue(author);
+			await msg.delete();
+			break;
+
 		// Display Match Info command
 		case '!match':
 			await displayMatch(channel, args);
 			break;
+
 		// Set Match Room command
 		case '!room':
 			// Check if message was sent in a match channel
@@ -53,12 +41,15 @@ const handleCommands = async (msg: Message) => {
 			// Set match room
 			await setMatchRoom(author.id, channel, args);
 			break;
+
+		// Set Match Score
 		case '!set':
 			// Check if message was sent in a match channel
 			if (!channel.name.startsWith(MATCH_CHANNEL_PREFIX)) return;
 			// Resolve match
 			await resolveMatch(channel, args);
 			break;
+
 		// Self bot
 		case '.':
 			// Check if right userID
