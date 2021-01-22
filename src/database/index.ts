@@ -4,7 +4,7 @@ const DB_PASSWORD = process.env.REVOLUBOT_DB_PWD;
 let database: Mongoose.Connection;
 
 export const connect = async () => {
-	const uri = `mongodb+srv://revolubot:${DB_PASSWORD}@revolubot.mkgky.mongodb.net/RankBaguette?retryWrites=true&w=majority`;
+	const uri = `mongodb+srv://revolubot:${DB_PASSWORD}@corehalla.xtv6m.mongodb.net/RankBaguette?retryWrites=true&w=majority`;
 
 	if (database) return;
 

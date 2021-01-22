@@ -2,7 +2,7 @@ import { MessageEmbed, OverwriteResolvable, User } from 'discord.js';
 import { fetchGuild } from '../bot/client';
 import { MATCH_CHANNELS_CATEGORY_ID } from '../bot/config';
 import { MatchModel } from '../database/match';
-import { IPlayerDocument, PlayerModel } from '../database/player';
+import { PlayerModel } from '../database/player';
 import { matchIDToChannelName, mentionFromId } from '../util/discord';
 import { IPlayer } from '../types';
 import { createLog } from './createLog';
@@ -25,14 +25,13 @@ const checkQueue = async ({ bracketName, teamSize }: IBracket) => {
 
 	// Create/Fetch player docs
 	const players = await Promise.all(
-		queue[bracketName].reduce<Promise<IPlayerDocument>[]>(
-			(acc, p, i) =>
-				i < teamSize * 2
-					? [...acc, PlayerModel.findOneOrCreate(p.id, p.name, 1200)]
-					: acc,
-			[]
-		)
+		queue[bracketName]
+			.slice(0, teamSize * 2)
+			.map((p) => PlayerModel.findOneOrCreate(p.id, p.name, 1200))
 	);
+
+	// Clear queue
+	queue[bracketName] = queue[bracketName].slice(teamSize * 2);
 
 	// Check if all players are defined
 	for (let i = 0; i < players.length; i++) if (!players[i]) return;
@@ -44,7 +43,7 @@ const checkQueue = async ({ bracketName, teamSize }: IBracket) => {
 	// TODO: any number of teams
 	let teams = [
 		shuffledPlayers.slice(0, teamSize),
-		shuffledPlayers.slice(teamSize),
+		shuffledPlayers.slice(teamSize, teamSize * 2),
 	].map((p) => ({
 		players: p,
 		rating:
@@ -59,9 +58,6 @@ const checkQueue = async ({ bracketName, teamSize }: IBracket) => {
 	// Create match document
 	const match = await new MatchModel({ teams }).save();
 	if (!match) return;
-
-	// TODO: better way to clear queue
-	[, , ...queue[bracketName]] = queue[bracketName];
 
 	// Create new TextChannel for the match and set it as a child of the matches category
 	const matchChannel = await guild.channels.create(
@@ -105,6 +101,10 @@ const checkQueue = async ({ bracketName, teamSize }: IBracket) => {
 			allow: ['VIEW_CHANNEL'],
 		}))
 	);
+
+	await matchChannel.updateOverwrite(matchChannel.guild.roles.everyone, {
+		VIEW_CHANNEL: false,
+	});
 
 	// Ping concerned users in match channel
 	await matchChannel.send(

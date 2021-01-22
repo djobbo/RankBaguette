@@ -8,7 +8,8 @@
 		"strict": true,
 		"target": "es2017",
 		"resolveJsonModule": true,
-		"watch": false
+		"watch": false,
+		"noImplicitAny": false
 	},
 	"compileOnSave": true,
 	"include": ["src"]

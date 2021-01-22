@@ -5,6 +5,8 @@ import { client } from './bot/client';
 import { QUEUE_CHECK_INTERVAL } from './bot/config';
 import { handleCommands } from './api/handleCommands';
 
+console.log(process.env.REVOLUBOT_DB_PWD);
+
 client.on('ready', async () => {
 	console.log(`🤓 Logged as ${client?.user?.tag}`);
 });
